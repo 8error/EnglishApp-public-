@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 如果需要TTS功能，可以添加这个权限 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.EnglishAPP">
+
+        <!-- 主Activity -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 添加单词Activity -->
+        <activity
+            android:name=".AddWordActivity"
+            android:parentActivityName=".MainActivity"
+            android:exported="false" />
+
+        <!-- 复习单词Activity -->
+        <activity
+            android:name=".ReviewActivity"
+            android:parentActivityName=".MainActivity"
+            android:exported="false" />
+
+    </application>
+
+</manifest>
