@@ -37,6 +37,13 @@
             android:parentActivityName=".MainActivity"
             android:exported="false" />
 
+        <!-- 新增：设置界面Activity -->
+        <activity
+            android:name=".SettingsActivity"
+            android:parentActivityName=".MainActivity"
+            android:exported="false"
+            android:label="复习设置" />
+
     </application>
 
 </manifest>

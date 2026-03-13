@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="MenuTitle">
 
     <!-- 搜索 -->
     <item
@@ -22,6 +24,13 @@
         android:id="@+id/action_settings"
         android:title="设置"
         android:icon="@android:drawable/ic_menu_preferences"
-        app:showAsAction="never" />
+        app:showAsAction="ifRoom" />  <!-- 改为 ifRoom，让它在空间足够时显示在工具栏上 -->
+
+    <!-- 新增：关于 -->
+    <item
+        android:id="@+id/action_about"
+        android:title="关于"
+        android:icon="@android:drawable/ic_menu_info_details"
+        app:showAsAction="never" />  <!-- 永远显示在溢出菜单中 -->
 
 </menu>

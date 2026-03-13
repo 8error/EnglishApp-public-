@@ -11,6 +11,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SearchView;
 import androidx.appcompat.widget.Toolbar;
@@ -220,6 +221,13 @@ public class MainActivity extends AppCompatActivity {
     private void filterWords() {
         if (currentTag.equals("全部")) {
             currentWords = new ArrayList<>(allWords);
+        } else if (currentTag.equals("收藏")) {
+            currentWords = new ArrayList<>();
+            for (Word word : allWords) {
+                if (word.isFavorite()) {
+                    currentWords.add(word);
+                }
+            }
         } else {
             currentWords = new ArrayList<>();
             for (Word word : allWords) {
@@ -317,10 +325,26 @@ public class MainActivity extends AppCompatActivity {
         if (itemId == R.id.action_favorite) {
             // 显示收藏的单词
             currentTag = "收藏";
+            // 取消其他标签的选中状态
+            chipAll.setChecked(false);
+            for (int i = 1; i < chipGroupTags.getChildCount(); i++) {
+                Chip chip = (Chip) chipGroupTags.getChildAt(i);
+                chip.setChecked(false);
+            }
             filterWords();
             return true;
         } else if (itemId == R.id.action_settings) {
-            Toast.makeText(this, "设置开发中", Toast.LENGTH_SHORT).show();
+            // 跳转到设置页面
+            Intent intent = new Intent(this, SettingsActivity.class);
+            startActivity(intent);
+            return true;
+        } else if (itemId == R.id.action_about) {
+            // 显示关于信息
+            new AlertDialog.Builder(this)
+                    .setTitle("关于")
+                    .setMessage("英语背单词App\n版本 1.0\n\n帮助您高效记忆单词")
+                    .setPositiveButton("确定", null)
+                    .show();
             return true;
         }
         return super.onOptionsItemSelected(item);

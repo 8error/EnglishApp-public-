@@ -11,6 +11,7 @@ import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -47,6 +48,8 @@ public class ReviewActivity extends AppCompatActivity {
     private Button btnShowAnswer;
     private Button btnRemember;
     private Button btnForget;
+    private Button btnNextWord;  // 新增：下一个单词按钮
+    private LinearLayout layoutRememberForget;  // 新增：记住/忘记按钮组
     private ImageView btnSpeak;
     private ProgressBar progressBar;
     private FloatingActionButton fabFlip;
@@ -105,6 +108,8 @@ public class ReviewActivity extends AppCompatActivity {
         btnShowAnswer = findViewById(R.id.btn_show_answer);
         btnRemember = findViewById(R.id.btn_remember);
         btnForget = findViewById(R.id.btn_forget);
+        btnNextWord = findViewById(R.id.btn_next_word);  // 初始化新按钮
+        layoutRememberForget = findViewById(R.id.layout_remember_forget);  // 初始化按钮组
         btnSpeak = findViewById(R.id.btn_speak);
         progressBar = findViewById(R.id.progress_bar);
         fabFlip = findViewById(R.id.fab_flip);
@@ -132,13 +137,36 @@ public class ReviewActivity extends AppCompatActivity {
 
     private void loadReviewWords() {
         progressBar.setVisibility(View.VISIBLE);
+
+        // 获取每日复习数量设置
+        int dailyLimit = SettingsActivity.getDailyReviewCount(this);
+        boolean isStrictMode = SettingsActivity.isStrictMode(this);
+
         disposables.add(
                 wordRepository.getWordsToReview()
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
                                 words -> {
-                                    reviewWords = words;
+                                    // 根据每日复习数量限制筛选单词
+                                    if (words.size() > dailyLimit) {
+                                        if (isStrictMode) {
+                                            // 严格模式：只复习前dailyLimit个
+                                            reviewWords = words.subList(0, dailyLimit);
+                                            Toast.makeText(this,
+                                                    "今日有" + words.size() + "个单词待复习，已按设置显示前" + dailyLimit + "个",
+                                                    Toast.LENGTH_LONG).show();
+                                        } else {
+                                            // 灵活模式：全部复习，但提示用户
+                                            reviewWords = words;
+                                            Toast.makeText(this,
+                                                    "今日有" + words.size() + "个单词需要复习",
+                                                    Toast.LENGTH_LONG).show();
+                                        }
+                                    } else {
+                                        reviewWords = words;
+                                    }
+
                                     progressBar.setVisibility(View.GONE);
 
                                     if (reviewWords.isEmpty()) {
@@ -189,6 +217,13 @@ public class ReviewActivity extends AppCompatActivity {
         cardBack.setVisibility(View.GONE);
         isShowingAnswer = false;
 
+        // 隐藏记住/忘记按钮组（因为还没显示答案）
+        layoutRememberForget.setVisibility(View.GONE);
+
+        // 启用显示答案按钮和下一个按钮
+        btnShowAnswer.setEnabled(true);
+        btnNextWord.setEnabled(true);
+
         // 自动朗读单词
         speakWord(currentWord.getEnglishWord());
     }
@@ -205,6 +240,9 @@ public class ReviewActivity extends AppCompatActivity {
 
         btnForget.setOnClickListener(v -> handleReviewResult(false));
 
+        // 新增：下一个单词按钮点击事件
+        btnNextWord.setOnClickListener(v -> nextWord());
+
         btnSpeak.setOnClickListener(v -> {
             if (!reviewWords.isEmpty() && currentIndex < reviewWords.size()) {
                 speakWord(reviewWords.get(currentIndex).getEnglishWord());
@@ -217,6 +255,10 @@ public class ReviewActivity extends AppCompatActivity {
     private void showAnswer() {
         if (!isShowingAnswer) {
             flipCard();
+            // 显示答案后，显示记住/忘记按钮组
+            layoutRememberForget.setVisibility(View.VISIBLE);
+            // 可以隐藏显示答案按钮（可选）
+            // btnShowAnswer.setVisibility(View.GONE);
         }
     }
 
@@ -249,12 +291,17 @@ public class ReviewActivity extends AppCompatActivity {
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
                                 () -> {
-                                    // 移动到下一个单词
-                                    currentIndex++;
-                                    if (currentIndex < reviewWords.size()) {
-                                        showCurrentWord();
+                                    Toast.makeText(this,
+                                            remembered ? "已标记为记住" : "已标记为忘记",
+                                            Toast.LENGTH_SHORT).show();
+
+                                    // 检查是否开启自动下一个
+                                    if (SettingsActivity.isAutoNext(this)) {
+                                        // 自动进入下一个单词
+                                        moveToNextWord();
                                     } else {
-                                        finishReview();
+                                        // 不自动进入，但可以继续操作
+                                        // 这里可以保持当前单词，让用户手动点击下一个
                                     }
                                 },
                                 throwable -> {
@@ -262,6 +309,30 @@ public class ReviewActivity extends AppCompatActivity {
                                 }
                         )
         );
+    }
+
+    // 新增：下一个单词按钮的处理方法
+    private void nextWord() {
+        // 如果还没显示答案，直接跳过
+        if (!isShowingAnswer) {
+            moveToNextWord();
+        } else {
+            // 如果已经显示答案，需要先处理当前单词的复习状态
+            // 这里可以选择：1. 自动标记为忘记 2. 提示用户先选择记住/忘记
+            // 我们选择提示用户
+            Toast.makeText(this, "请先选择「记住」或「忘记」", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // 新增：移动到下一个单词的逻辑
+    private void moveToNextWord() {
+        if (currentIndex < reviewWords.size() - 1) {
+            currentIndex++;
+            showCurrentWord();
+        } else {
+            // 已经是最后一个单词
+            finishReview();
+        }
     }
 
     private void speakWord(String word) {
