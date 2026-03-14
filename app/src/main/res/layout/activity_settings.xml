@@ -147,6 +147,69 @@
                 android:background="@android:color/darker_gray"
                 android:layout_marginVertical="16dp" />
 
+            <!-- 标题：复习顺序 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="复习顺序"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/purple_500"
+                android:layout_marginBottom="16dp" />
+
+            <!-- 复习顺序选项 -->
+            <RadioGroup
+                android:id="@+id/rg_review_order"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp">
+
+                <RadioButton
+                    android:id="@+id/rb_order_normal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="默认顺序"
+                    android:textSize="16sp"
+                    android:textColor="@android:color/black"
+                    android:paddingVertical="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="· 按照单词原本的顺序复习（如首字母顺序）"
+                    android:textSize="14sp"
+                    android:textColor="@android:color/darker_gray"
+                    android:layout_marginStart="32dp"
+                    android:layout_marginBottom="12dp" />
+
+                <RadioButton
+                    android:id="@+id/rb_order_random"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="随机顺序"
+                    android:textSize="16sp"
+                    android:textColor="@android:color/black"
+                    android:checked="true"
+                    android:paddingVertical="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="· 每次复习时随机打乱单词顺序\n· 避免记忆顺序依赖，提高记忆效果"
+                    android:textSize="14sp"
+                    android:textColor="@android:color/darker_gray"
+                    android:layout_marginStart="32dp"
+                    android:lineSpacingExtra="4dp" />
+
+            </RadioGroup>
+
+            <!-- 分割线 -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@android:color/darker_gray"
+                android:layout_marginVertical="16dp" />
+
             <!-- 标题：复习行为 -->
             <TextView
                 android:layout_width="match_parent"

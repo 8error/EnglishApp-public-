@@ -19,6 +19,9 @@ public class SettingsActivity extends AppCompatActivity {
     private RadioGroup rgReviewStrategy;
     private RadioButton rbStrict;
     private RadioButton rbFlexible;
+    private RadioGroup rgReviewOrder;      // 新增：复习顺序选项组
+    private RadioButton rbOrderNormal;     // 新增：默认顺序
+    private RadioButton rbOrderRandom;     // 新增：随机顺序
     private CheckBox cbAutoNext;
     private Button btnSaveSettings;
     private Toolbar toolbar;
@@ -42,6 +45,12 @@ public class SettingsActivity extends AppCompatActivity {
         rgReviewStrategy = findViewById(R.id.rg_review_strategy);
         rbStrict = findViewById(R.id.rb_strict);
         rbFlexible = findViewById(R.id.rb_flexible);
+
+        // 新增：初始化复习顺序相关视图
+        rgReviewOrder = findViewById(R.id.rg_review_order);
+        rbOrderNormal = findViewById(R.id.rb_order_normal);
+        rbOrderRandom = findViewById(R.id.rb_order_random);
+
         cbAutoNext = findViewById(R.id.cb_auto_next);
         btnSaveSettings = findViewById(R.id.btn_save_settings);
 
@@ -61,13 +70,22 @@ public class SettingsActivity extends AppCompatActivity {
         int dailyCount = sharedPreferences.getInt("daily_review_count", 20);
         boolean isStrict = sharedPreferences.getBoolean("strict_mode", true);
         boolean autoNext = sharedPreferences.getBoolean("auto_next", false);
+        boolean isRandomOrder = sharedPreferences.getBoolean("random_order", true); // 新增：默认随机顺序
 
         etDailyReviewCount.setText(String.valueOf(dailyCount));
 
+        // 复习策略
         if (isStrict) {
             rbStrict.setChecked(true);
         } else {
             rbFlexible.setChecked(true);
+        }
+
+        // 复习顺序
+        if (isRandomOrder) {
+            rbOrderRandom.setChecked(true);
+        } else {
+            rbOrderNormal.setChecked(true);
         }
 
         cbAutoNext.setChecked(autoNext);
@@ -105,12 +123,14 @@ public class SettingsActivity extends AppCompatActivity {
 
         boolean isStrict = rbStrict.isChecked();
         boolean autoNext = cbAutoNext.isChecked();
+        boolean isRandomOrder = rbOrderRandom.isChecked(); // 新增：获取复习顺序设置
 
         // 保存到SharedPreferences
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putInt("daily_review_count", dailyCount);
         editor.putBoolean("strict_mode", isStrict);
         editor.putBoolean("auto_next", autoNext);
+        editor.putBoolean("random_order", isRandomOrder); // 新增：保存复习顺序
         editor.apply();
 
         Toast.makeText(this, "设置已保存", Toast.LENGTH_SHORT).show();
@@ -148,5 +168,13 @@ public class SettingsActivity extends AppCompatActivity {
     public static boolean isAutoNext(Context context) {
         SharedPreferences prefs = context.getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
         return prefs.getBoolean("auto_next", false);
+    }
+
+    /**
+     * 新增：获取是否随机顺序
+     */
+    public static boolean isRandomOrder(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
+        return prefs.getBoolean("random_order", true); // 默认true，让新手体验到随机的好处
     }
 }

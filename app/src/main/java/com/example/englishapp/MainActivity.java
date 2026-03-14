@@ -1,10 +1,13 @@
 package com.example.englishapp;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -25,6 +28,8 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -35,24 +40,19 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class MainActivity extends AppCompatActivity {
 
-    private TextView tvTotalWords;
-    private TextView tvTodayReview;
-    private TextView tvMastered;
-    private RecyclerView rvWords;
-    private LinearLayout chipGroupTags;  // 改为 LinearLayout 以匹配布局文件
-    private Chip chipAll;
-    private ImageView ivSearch;
-    private Toolbar toolbar;
-    private MaterialButton btnReview;
-    private MaterialButton btnAdd;
+    private static final String TAG = "MainActivity";
+    private static final String PREF_FIRST_LAUNCH = "first_launch";
+
+    private TextView tvTotalWords;      // 总单词
+    private TextView tvNeedReview;       // 待复习
+    private TextView tvMastered;         // 已掌握
+    private ImageView ivSettings;
+    private MaterialButton btnLearn;     // 学习按钮
+    private MaterialButton btnReview;    // 复习按钮
+    private MaterialButton btnAdd;       // 添加单词按钮
 
     private WordRepository wordRepository;
     private CompositeDisposable disposables = new CompositeDisposable();
-    private WordAdapter wordAdapter;
-    private List<Word> allWords = new ArrayList<>();
-    private List<Word> currentWords = new ArrayList<>();
-    private String currentTag = "全部";
-    private String currentKeyword = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,221 +62,236 @@ public class MainActivity extends AppCompatActivity {
         // 初始化视图
         initViews();
 
-        // 设置工具栏
-        setSupportActionBar(toolbar);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setTitle("英语单词本");
-        }
-
         // 初始化 Repository
         wordRepository = new WordRepository(getApplication());
-
-        // 设置 RecyclerView
-        setupRecyclerView();
 
         // 设置点击事件
         setupClickListeners();
 
-        // 加载数据
-        loadData();
+        // 检查是否首次启动
+        checkFirstLaunch();
+
+        // 加载统计数据
+        loadStats();
+
+        // 设置实时数据观察
+        setupDataObservers();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 每次回到页面时刷新数据
+        refreshStats();
     }
 
     private void initViews() {
-        toolbar = findViewById(R.id.toolbar);
         tvTotalWords = findViewById(R.id.tv_total_words);
-        tvTodayReview = findViewById(R.id.tv_today_review);
+        tvNeedReview = findViewById(R.id.tv_need_review);
         tvMastered = findViewById(R.id.tv_mastered);
-        rvWords = findViewById(R.id.rv_words);
-        chipGroupTags = findViewById(R.id.layout_tags);  // LinearLayout 类型
-        chipAll = findViewById(R.id.chip_all);
-        ivSearch = findViewById(R.id.iv_search);
+        ivSettings = findViewById(R.id.iv_settings);
+        btnLearn = findViewById(R.id.btn_learn);
         btnReview = findViewById(R.id.btn_review);
         btnAdd = findViewById(R.id.btn_add);
     }
 
-    private void setupRecyclerView() {
-        rvWords.setLayoutManager(new LinearLayoutManager(this));
-        wordAdapter = new WordAdapter();
-        wordAdapter.setOnItemClickListener(this::onWordClick);
-        wordAdapter.setOnFavoriteClickListener(this::onFavoriteClick);
-        rvWords.setAdapter(wordAdapter);
-    }
-
     private void setupClickListeners() {
-        // 搜索按钮
-        ivSearch.setOnClickListener(v -> {
-            Toast.makeText(this, "搜索功能开发中", Toast.LENGTH_SHORT).show();
+        ivSettings.setOnClickListener(v -> {
+            Intent intent = new Intent(this, SettingsActivity.class);
+            startActivity(intent);
         });
 
-        // 开始复习按钮
+        btnLearn.setOnClickListener(v -> {
+            // 学习新单词功能（待实现）
+            Toast.makeText(this, "学习功能开发中", Toast.LENGTH_SHORT).show();
+        });
+
         btnReview.setOnClickListener(v -> {
-            if (currentWords.isEmpty()) {
-                Toast.makeText(this, "没有单词可复习", Toast.LENGTH_SHORT).show();
-                return;
+            // 检查是否有待复习单词
+            String needReviewStr = tvNeedReview.getText().toString();
+            int needReviewCount = Integer.parseInt(needReviewStr);
+
+            if (needReviewCount == 0) {
+                // 今日没有待复习单词，询问是否学习新词
+                showNoReviewDialog();
+            } else {
+                // 进入复习界面
+                startReviewActivity();
             }
-            startReviewActivity();
         });
 
-        // 添加单词按钮
         btnAdd.setOnClickListener(v -> {
             startAddWordActivity();
         });
-
-        // 全部标签点击
-        chipAll.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (isChecked) {
-                currentTag = "全部";
-                filterWords();
-            }
-        });
     }
 
-    private void loadData() {
+    /**
+     * 显示没有复习单词时的对话框
+     */
+    private void showNoReviewDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("今日无复习任务")
+                .setMessage("今天没有需要复习的单词，是否要学习一些新单词？")
+                .setPositiveButton("学习新词", (dialog, which) -> {
+                    // 进入学习界面（待实现）
+                    Toast.makeText(this, "学习功能开发中", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    /**
+     * 检查是否首次启动
+     */
+    private void checkFirstLaunch() {
+        SharedPreferences prefs = getSharedPreferences("AppSettings", MODE_PRIVATE);
+        boolean isFirstLaunch = prefs.getBoolean(PREF_FIRST_LAUNCH, true);
+
+        if (isFirstLaunch) {
+            showFirstLaunchDialog();
+            prefs.edit().putBoolean(PREF_FIRST_LAUNCH, false).apply();
+        }
+    }
+
+    /**
+     * 显示首次启动设置对话框
+     */
+    private void showFirstLaunchDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("欢迎使用英语单词本");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 30, 50, 30);
+
+        TextView message = new TextView(this);
+        message.setText("请设置您每天想学习的单词数量：");
+        message.setTextSize(16);
+        layout.addView(message);
+
+        EditText input = new EditText(this);
+        input.setHint("例如：10");
+        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        input.setText("10");
+        layout.addView(input);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("开始学习", (dialog, which) -> {
+            String value = input.getText().toString().trim();
+            int dailyCount;
+            try {
+                dailyCount = Integer.parseInt(value);
+                if (dailyCount <= 0) dailyCount = 10;
+                if (dailyCount > 100) dailyCount = 100;
+            } catch (NumberFormatException e) {
+                dailyCount = 10;
+            }
+
+            SharedPreferences.Editor editor = getSharedPreferences("AppSettings", MODE_PRIVATE).edit();
+            editor.putInt("daily_learn_count", dailyCount);
+            editor.apply();
+
+            Toast.makeText(this, "已设置每天学习 " + dailyCount + " 个新单词", Toast.LENGTH_SHORT).show();
+        });
+
+        builder.setCancelable(false);
+        builder.show();
+    }
+
+    /**
+     * 加载统计数据
+     */
+    private void loadStats() {
         disposables.add(
                 wordRepository.getAllWords()
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
-                                this::onWordsLoaded,
+                                this::updateStats,
                                 throwable -> {
-                                    Toast.makeText(this, "加载失败: " + throwable.getMessage(), Toast.LENGTH_SHORT).show();
+                                    Log.e(TAG, "加载失败", throwable);
                                 }
                         )
         );
+    }
 
-        // 加载今日复习数量
+    /**
+     * 设置数据实时观察
+     */
+    private void setupDataObservers() {
         disposables.add(
-                wordRepository.getTodayReviewCount()
+                wordRepository.getAllWords()
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
-                                count -> tvTodayReview.setText(String.valueOf(count)),
-                                throwable -> tvTodayReview.setText("0")
+                                this::updateStats,
+                                throwable -> {
+                                    Log.e(TAG, "观察数据失败", throwable);
+                                }
                         )
         );
     }
 
-    private void onWordsLoaded(List<Word> words) {
-        allWords = words;
-        currentWords = new ArrayList<>(words);
-
-        // 更新统计
-        updateStats(words);
-
-        // 更新标签
-        updateTags(words);
-
-        // 更新列表
-        wordAdapter.setWords(words);
-    }
-
+    /**
+     * 更新统计数据
+     */
     private void updateStats(List<Word> words) {
         // 总单词数
         tvTotalWords.setText(String.valueOf(words.size()));
 
-        // 已掌握单词（掌握程度 >= 4）
-        long masteredCount = 0;
+        // 计算待复习单词（基于艾宾浩斯遗忘曲线）
+        long now = System.currentTimeMillis();
+        int needReviewCount = 0;
+        int masteredCount = 0;
+
         for (Word word : words) {
+            // 根据 next_review 判断是否需要复习
+            if (isWordNeedReview(word, now)) {
+                needReviewCount++;
+            }
             if (word.getMasteryLevel() >= 4) {
                 masteredCount++;
             }
         }
+
+        tvNeedReview.setText(String.valueOf(needReviewCount));
         tvMastered.setText(String.valueOf(masteredCount));
+
+        Log.d(TAG, "统计更新 - 总单词: " + words.size() +
+                ", 待复习: " + needReviewCount +
+                ", 已掌握: " + masteredCount);
     }
 
-    private void updateTags(List<Word> words) {
-        // 收集所有标签
-        Set<String> tagSet = new HashSet<>();
-        for (Word word : words) {
-            String tags = word.getTags();
-            if (tags != null && !tags.isEmpty()) {
-                String[] tagArray = tags.split(",");
-                for (String tag : tagArray) {
-                    tagSet.add(tag.trim());
-                }
-            }
-        }
+    /**
+     * 判断单词是否需要复习
+     */
+    private boolean isWordNeedReview(Word word, long currentTime) {
+        Object nextReview = word.getNextReview();
+        if (nextReview == null) return false;
 
-        // 移除除了"全部"以外的所有标签
-        while (chipGroupTags.getChildCount() > 1) {
-            chipGroupTags.removeViewAt(1);
+        if (nextReview instanceof Long) {
+            return (Long) nextReview <= currentTime;
+        } else if (nextReview instanceof Date) {
+            return ((Date) nextReview).getTime() <= currentTime;
+        } else if (nextReview instanceof Integer) {
+            return ((Integer) nextReview) * 1000L <= currentTime;
         }
-
-        // 添加新标签
-        for (String tag : tagSet) {
-            Chip chip = new Chip(this);
-            chip.setText(tag);
-            chip.setCheckable(true);
-            chip.setCheckedIconVisible(false);
-            chip.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                if (isChecked) {
-                    currentTag = tag;
-                    filterWords();
-                }
-            });
-            chipGroupTags.addView(chip);
-        }
+        return false;
     }
 
-    private void filterWords() {
-        if (currentTag.equals("全部")) {
-            currentWords = new ArrayList<>(allWords);
-        } else if (currentTag.equals("收藏")) {
-            currentWords = new ArrayList<>();
-            for (Word word : allWords) {
-                if (word.isFavorite()) {
-                    currentWords.add(word);
-                }
-            }
-        } else {
-            currentWords = new ArrayList<>();
-            for (Word word : allWords) {
-                String tags = word.getTags();
-                if (tags != null && tags.contains(currentTag)) {
-                    currentWords.add(word);
-                }
-            }
-        }
-
-        // 如果有搜索关键词，进一步过滤
-        if (!currentKeyword.isEmpty()) {
-            List<Word> filtered = new ArrayList<>();
-            String keyword = currentKeyword.toLowerCase();
-            for (Word word : currentWords) {
-                if (word.getEnglishWord().toLowerCase().contains(keyword) ||
-                        word.getChineseMeaning().contains(keyword)) {
-                    filtered.add(word);
-                }
-            }
-            currentWords = filtered;
-        }
-
-        wordAdapter.setWords(currentWords);
-    }
-
-    private void onWordClick(Word word) {
-        // 点击单词，显示详情
-        Toast.makeText(this, word.getEnglishWord() + ": " + word.getChineseMeaning(), Toast.LENGTH_SHORT).show();
-    }
-
-    private void onFavoriteClick(Word word, int position) {
-        // 更新收藏状态
-        word.setFavorite(!word.isFavorite());
-
+    /**
+     * 刷新统计数据
+     */
+    private void refreshStats() {
         disposables.add(
-                wordRepository.update(word)
+                wordRepository.getAllWords()
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
-                                () -> {
-                                    wordAdapter.notifyItemChanged(position);
-                                    String message = word.isFavorite() ? "已添加到收藏" : "已取消收藏";
-                                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
-                                },
+                                this::updateStats,
                                 throwable -> {
-                                    Toast.makeText(this, "操作失败", Toast.LENGTH_SHORT).show();
-                                    // 恢复原状态
-                                    word.setFavorite(!word.isFavorite());
+                                    Log.e(TAG, "刷新统计失败", throwable);
                                 }
                         )
         );
@@ -295,54 +310,20 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main_menu, menu);
-
-        MenuItem searchItem = menu.findItem(R.id.action_search);
-        SearchView searchView = (SearchView) searchItem.getActionView();
-        searchView.setQueryHint("搜索单词...");
-
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String query) {
-                currentKeyword = query;
-                filterWords();
-                return true;
-            }
-
-            @Override
-            public boolean onQueryTextChange(String newText) {
-                currentKeyword = newText;
-                filterWords();
-                return true;
-            }
-        });
-
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int itemId = item.getItemId();
-        if (itemId == R.id.action_favorite) {
-            // 显示收藏的单词
-            currentTag = "收藏";
-            // 取消其他标签的选中状态
-            chipAll.setChecked(false);
-            for (int i = 1; i < chipGroupTags.getChildCount(); i++) {
-                Chip chip = (Chip) chipGroupTags.getChildAt(i);
-                chip.setChecked(false);
-            }
-            filterWords();
-            return true;
-        } else if (itemId == R.id.action_settings) {
-            // 跳转到设置页面
+        if (itemId == R.id.action_settings) {
             Intent intent = new Intent(this, SettingsActivity.class);
             startActivity(intent);
             return true;
         } else if (itemId == R.id.action_about) {
-            // 显示关于信息
             new AlertDialog.Builder(this)
                     .setTitle("关于")
-                    .setMessage("英语背单词App\n版本 1.0\n\n帮助您高效记忆单词")
+                    .setMessage("英语背单词App\n版本 1.0\n\n基于艾宾浩斯遗忘曲线的高效记忆工具")
                     .setPositiveButton("确定", null)
                     .show();
             return true;

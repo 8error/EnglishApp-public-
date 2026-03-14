@@ -69,7 +69,7 @@
                     android:layout_width="80dp"
                     android:layout_height="80dp"
                     android:src="@android:drawable/ic_menu_edit"
-                    android:tint="@color/purple_500"
+                    app:tint="@color/purple_500"
                     android:layout_marginBottom="24dp" />
 
                 <TextView
@@ -97,7 +97,7 @@
                     android:textSize="16sp"
                     android:textColor="@android:color/darker_gray"
                     android:layout_marginTop="24dp"
-                    android:text="点击显示答案或翻转卡片" />
+                    android:text="点击卡片翻转" />
 
             </LinearLayout>
 
@@ -182,18 +182,17 @@
             android:layout_height="48dp"
             android:text="显示答案"
             android:textColor="@android:color/white"
-            android:backgroundTint="@color/purple_500"
+            app:backgroundTint="@color/purple_500"
             app:cornerRadius="8dp"
             android:layout_marginBottom="12dp" />
 
-        <!-- 记住/忘记按钮组 -->
+        <!-- 记住/忘记按钮组（初始隐藏） -->
         <LinearLayout
             android:id="@+id/layout_remember_forget"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:visibility="gone"
-            android:layout_marginBottom="12dp">
+            android:visibility="gone">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_forget"
@@ -202,7 +201,7 @@
                 android:layout_weight="1"
                 android:text="忘记"
                 android:textColor="@android:color/white"
-                android:backgroundTint="@android:color/holo_red_dark"
+                app:backgroundTint="@android:color/holo_red_dark"
                 app:cornerRadius="8dp"
                 android:layout_marginEnd="4dp" />
 
@@ -213,46 +212,37 @@
                 android:layout_weight="1"
                 android:text="记住"
                 android:textColor="@android:color/white"
-                android:backgroundTint="@color/teal_700"
+                app:backgroundTint="@color/teal_700"
                 app:cornerRadius="8dp"
                 android:layout_marginStart="4dp" />
 
         </LinearLayout>
 
-        <!-- 新增：下一个单词按钮 -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_next_word"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:text="下一个单词"
-            android:textColor="@android:color/white"
-            android:backgroundTint="@color/purple_500"
-            app:cornerRadius="8dp"
-            android:enabled="false" />
-
     </LinearLayout>
-
-    <!-- 浮动按钮 -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_flip"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
-        android:src="@android:drawable/ic_menu_rotate"
-        android:backgroundTint="@color/purple_500"
-        android:visibility="gone"
-        app:fabSize="normal" />
 
     <!-- 朗读按钮 -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btn_speak"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|start"
+        android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
         android:src="@android:drawable/ic_media_play"
-        android:backgroundTint="@color/teal_700"
+        app:backgroundTint="@color/teal_700"
+        app:tint="@android:color/white"
+        app:fabSize="normal" />
+
+    <!-- 翻转按钮（悬浮） -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_flip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="16dp"
+        android:src="@android:drawable/ic_menu_rotate"
+        app:backgroundTint="@color/purple_500"
+        app:tint="@android:color/white"
+        android:visibility="visible"
         app:fabSize="normal" />
 
 </LinearLayout>
