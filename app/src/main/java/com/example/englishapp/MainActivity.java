@@ -16,23 +16,14 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.SearchView;
 import androidx.appcompat.widget.Toolbar;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.englishapp.adapter.WordAdapter;
 import com.example.englishapp.entity.Word;
 import com.example.englishapp.repository.WordRepository;
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.chip.Chip;
 
-import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
@@ -44,6 +35,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREF_FIRST_LAUNCH = "first_launch";
 
     private TextView tvTotalWords;      // 总单词
+    private TextView tvNewWords;         // 未学习
     private TextView tvNeedReview;       // 待复习
     private TextView tvMastered;         // 已掌握
     private ImageView ivSettings;
@@ -87,6 +79,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void initViews() {
         tvTotalWords = findViewById(R.id.tv_total_words);
+        tvNewWords = findViewById(R.id.tv_new_words);
         tvNeedReview = findViewById(R.id.tv_need_review);
         tvMastered = findViewById(R.id.tv_mastered);
         ivSettings = findViewById(R.id.iv_settings);
@@ -102,8 +95,33 @@ public class MainActivity extends AppCompatActivity {
         });
 
         btnLearn.setOnClickListener(v -> {
-            // 学习新单词功能（待实现）
-            Toast.makeText(this, "学习功能开发中", Toast.LENGTH_SHORT).show();
+            // 检查是否有未学习的单词
+            disposables.add(
+                    wordRepository.getAllWords()
+                            .firstOrError()
+                            .subscribeOn(Schedulers.io())
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .subscribe(
+                                    words -> {
+                                        int newCount = 0;
+                                        for (Word word : words) {
+                                            if (word.getMasteryLevel() == 0 && word.getReviewCount() == 0) {
+                                                newCount++;
+                                            }
+                                        }
+
+                                        if (newCount == 0) {
+                                            Toast.makeText(this, "没有未学习的单词，请先添加单词", Toast.LENGTH_SHORT).show();
+                                        } else {
+                                            startLearnActivity();
+                                        }
+                                    },
+                                    throwable -> {
+                                        Log.e(TAG, "检查未学习单词失败", throwable);
+                                        Toast.makeText(this, "加载失败", Toast.LENGTH_SHORT).show();
+                                    }
+                            )
+            );
         });
 
         btnReview.setOnClickListener(v -> {
@@ -133,8 +151,7 @@ public class MainActivity extends AppCompatActivity {
                 .setTitle("今日无复习任务")
                 .setMessage("今天没有需要复习的单词，是否要学习一些新单词？")
                 .setPositiveButton("学习新词", (dialog, which) -> {
-                    // 进入学习界面（待实现）
-                    Toast.makeText(this, "学习功能开发中", Toast.LENGTH_SHORT).show();
+                    startLearnActivity();
                 })
                 .setNegativeButton("取消", null)
                 .show();
@@ -203,14 +220,61 @@ public class MainActivity extends AppCompatActivity {
      * 加载统计数据
      */
     private void loadStats() {
+        Log.d(TAG, "开始加载统计数据...");
+
+        // 获取所有单词
         disposables.add(
                 wordRepository.getAllWords()
+                        .firstOrError()
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
-                                this::updateStats,
+                                words -> {
+                                    // 更新总单词数
+                                    tvTotalWords.setText(String.valueOf(words.size()));
+
+                                    // 统计未学习和已掌握
+                                    int newCount = 0;
+                                    int masteredCount = 0;
+
+                                    for (Word word : words) {
+                                        // 未学习：masteryLevel == 0 && reviewCount == 0
+                                        if (word.getMasteryLevel() == 0 && word.getReviewCount() == 0) {
+                                            newCount++;
+                                        }
+                                        // 已掌握：masteryLevel >= 4
+                                        if (word.getMasteryLevel() >= 4) {
+                                            masteredCount++;
+                                        }
+                                    }
+
+                                    tvNewWords.setText(String.valueOf(newCount));
+                                    tvMastered.setText(String.valueOf(masteredCount));
+
+                                    Log.d(TAG, "统计更新 - 总:" + words.size() +
+                                            " 未学习:" + newCount +
+                                            " 已掌握:" + masteredCount);
+                                },
                                 throwable -> {
-                                    Log.e(TAG, "加载失败", throwable);
+                                    Log.e(TAG, "加载单词列表失败", throwable);
+                                    Toast.makeText(this, "加载失败: " + throwable.getMessage(), Toast.LENGTH_SHORT).show();
+                                }
+                        )
+        );
+
+        // 获取待复习数量
+        disposables.add(
+                wordRepository.getTodayReviewCount()
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(
+                                count -> {
+                                    tvNeedReview.setText(String.valueOf(count));
+                                    Log.d(TAG, "待复习数量: " + count);
+                                },
+                                throwable -> {
+                                    Log.e(TAG, "获取待复习数量失败", throwable);
+                                    tvNeedReview.setText("0");
                                 }
                         )
         );
@@ -244,23 +308,31 @@ public class MainActivity extends AppCompatActivity {
         long now = System.currentTimeMillis();
         int needReviewCount = 0;
         int masteredCount = 0;
+        int newCount = 0;
 
         for (Word word : words) {
-            // 根据 next_review 判断是否需要复习
-            if (isWordNeedReview(word, now)) {
+            // 未学习统计
+            if (word.getMasteryLevel() == 0 && word.getReviewCount() == 0) {
+                newCount++;
+            }
+            // 待复习统计（已学习且需要复习）
+            if ((word.getMasteryLevel() > 0 || word.getReviewCount() > 0) && isWordNeedReview(word, now)) {
                 needReviewCount++;
             }
+            // 已掌握统计
             if (word.getMasteryLevel() >= 4) {
                 masteredCount++;
             }
         }
 
+        tvNewWords.setText(String.valueOf(newCount));
         tvNeedReview.setText(String.valueOf(needReviewCount));
         tvMastered.setText(String.valueOf(masteredCount));
 
-        Log.d(TAG, "统计更新 - 总单词: " + words.size() +
-                ", 待复习: " + needReviewCount +
-                ", 已掌握: " + masteredCount);
+        Log.d(TAG, "统计更新 - 总:" + words.size() +
+                " 未学习:" + newCount +
+                " 待复习:" + needReviewCount +
+                " 已掌握:" + masteredCount);
     }
 
     /**
@@ -295,6 +367,11 @@ public class MainActivity extends AppCompatActivity {
                                 }
                         )
         );
+    }
+
+    private void startLearnActivity() {
+        Intent intent = new Intent(this, LearnActivity.class);
+        startActivity(intent);
     }
 
     private void startReviewActivity() {

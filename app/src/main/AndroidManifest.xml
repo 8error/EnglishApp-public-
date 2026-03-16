@@ -37,6 +37,13 @@
             android:parentActivityName=".MainActivity"
             android:exported="false" />
 
+        <!-- 学习单词Activity -->
+        <activity
+            android:name=".LearnActivity"
+            android:parentActivityName=".MainActivity"
+            android:exported="false"
+            android:label="学习新单词" />
+
         <!-- 新增：设置界面Activity -->
         <activity
             android:name=".SettingsActivity"

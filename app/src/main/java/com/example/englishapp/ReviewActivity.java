@@ -146,6 +146,9 @@ public class ReviewActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * 加载需要复习的单词（只加载已学习的单词）
+     */
     private void loadReviewWords() {
         progressBar.setVisibility(View.VISIBLE);
 
@@ -157,12 +160,25 @@ public class ReviewActivity extends AppCompatActivity {
         // 获取今天的日期
         String today = getTodayDateString();
 
+        // 获取需要复习的单词
         disposables.add(
                 wordRepository.getWordsToReview()
+                        .firstOrError()
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
                                 words -> {
+                                    // 过滤出已学习的单词（masteryLevel > 0 或 reviewCount > 0）
+                                    List<Word> learnedWords = new ArrayList<>();
+                                    for (Word word : words) {
+                                        if (word.getMasteryLevel() > 0 || word.getReviewCount() > 0) {
+                                            learnedWords.add(word);
+                                        }
+                                    }
+
+                                    Log.d(TAG, "需要复习的单词: " + words.size() +
+                                            "，已学习的: " + learnedWords.size());
+
                                     // 检查是否已有今日的复习列表
                                     SharedPreferences prefs = getSharedPreferences("ReviewList", MODE_PRIVATE);
                                     String savedDate = prefs.getString("review_date", "");
@@ -175,17 +191,19 @@ public class ReviewActivity extends AppCompatActivity {
 
                                     if (savedDate.equals(today) && !savedWordIds.isEmpty() && !isReset) {
                                         // 今天已经生成过复习列表，从保存的ID加载
-                                        wordsToReview = loadReviewListFromSavedIds(savedWordIds, words);
+                                        wordsToReview = loadReviewListFromSavedIds(savedWordIds, learnedWords);
 
                                         // 如果加载的列表为空，重新生成
                                         if (wordsToReview.isEmpty()) {
-                                            wordsToReview = generateNewReviewList(words, dailyLimit, isStrictMode, isRandomOrder);
+                                            wordsToReview = generateNewReviewList(learnedWords, dailyLimit, isStrictMode, isRandomOrder);
                                             saveTodayReviewList(wordsToReview, today);
                                             isNewGroup = true;
+                                        } else {
+                                            Log.d(TAG, "从保存的列表加载了 " + wordsToReview.size() + " 个单词");
                                         }
                                     } else {
                                         // 今天第一次点击复习，或者被重置了，生成新的复习列表
-                                        wordsToReview = generateNewReviewList(words, dailyLimit, isStrictMode, isRandomOrder);
+                                        wordsToReview = generateNewReviewList(learnedWords, dailyLimit, isStrictMode, isRandomOrder);
 
                                         // 保存今天的复习列表
                                         saveTodayReviewList(wordsToReview, today);
@@ -196,6 +214,7 @@ public class ReviewActivity extends AppCompatActivity {
                                         }
 
                                         isNewGroup = true;
+                                        Log.d(TAG, "生成了新的复习列表，共 " + wordsToReview.size() + " 个单词");
                                     }
 
                                     // 将单词加入队列
@@ -214,7 +233,8 @@ public class ReviewActivity extends AppCompatActivity {
                                 },
                                 throwable -> {
                                     progressBar.setVisibility(View.GONE);
-                                    Toast.makeText(this, "加载失败: " + throwable.getMessage(), Toast.LENGTH_SHORT).show();
+                                    Log.e(TAG, "加载复习单词失败", throwable);
+                                    Toast.makeText(ReviewActivity.this, "加载失败: " + throwable.getMessage(), Toast.LENGTH_SHORT).show();
                                     finish();
                                 }
                         )
