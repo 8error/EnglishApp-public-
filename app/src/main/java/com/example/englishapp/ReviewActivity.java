@@ -65,8 +65,9 @@ public class ReviewActivity extends AppCompatActivity {
     private Queue<Word> reviewQueue = new LinkedList<>();
     private List<Word> forgottenWords = new ArrayList<>(); // 忘记的单词暂存区
     private Word currentWord;
-    private int totalWordCount = 0;
-    private int reviewedCount = 0;
+    private int totalPlanCount = 0;      // 今日计划复习总数
+    private int sessionReviewedCount = 0; // 当前会话中已复习的数量
+    private int rememberedCount = 0;      // 当前会话中记住的数量（用于保存进度）
 
     private boolean isShowingAnswer = false;
     private TextToSpeech textToSpeech;
@@ -147,7 +148,43 @@ public class ReviewActivity extends AppCompatActivity {
     }
 
     /**
-     * 加载需要复习的单词（只加载已学习的单词）
+     * 获取今天的日期字符串
+     */
+    private String getTodayDateString() {
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.CHINA);
+        return sdf.format(new java.util.Date());
+    }
+
+    /**
+     * 保存今日已完成复习数量
+     */
+    private void saveReviewedCount() {
+        SharedPreferences prefs = getSharedPreferences("ReviewProgress", MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+
+        // 获取今日已复习数量（从上次保存的）
+        int reviewedToday = prefs.getInt("reviewed_today_" + getTodayDateString(), 0);
+        // 增加1（当前记住的单词）
+        reviewedToday++;
+        editor.putInt("reviewed_today_" + getTodayDateString(), reviewedToday);
+        editor.apply();
+
+        Log.d(TAG, "保存今日已复习数量: " + reviewedToday);
+    }
+
+    /**
+     * 获取今日已完成复习数量
+     */
+    private int getTodayReviewedCount() {
+        SharedPreferences prefs = getSharedPreferences("ReviewProgress", MODE_PRIVATE);
+        return prefs.getInt("reviewed_today_" + getTodayDateString(), 0);
+    }
+
+    /**
+     * 加载需要复习的单词
+     */
+    /**
+     * 加载需要复习的单词（根据选中的单词本过滤）
      */
     private void loadReviewWords() {
         progressBar.setVisibility(View.VISIBLE);
@@ -156,6 +193,11 @@ public class ReviewActivity extends AppCompatActivity {
         int dailyLimit = SettingsActivity.getDailyReviewCount(this);
         boolean isStrictMode = SettingsActivity.isStrictMode(this);
         boolean isRandomOrder = SettingsActivity.isRandomOrder(this);
+
+        // 获取选中的单词本
+        String selectedWordBook = SettingsActivity.getSelectedWordBook(this);
+        String targetTag = SettingsActivity.getWordBookTag(selectedWordBook);
+        Log.d(TAG, "当前选中的单词本: " + selectedWordBook + ", 标签: " + targetTag);
 
         // 获取今天的日期
         String today = getTodayDateString();
@@ -168,16 +210,23 @@ public class ReviewActivity extends AppCompatActivity {
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
                                 words -> {
+                                    // 根据单词本过滤
+                                    List<Word> filteredWords = filterWordsByWordBook(words, targetTag);
+                                    Log.d(TAG, "单词本 " + selectedWordBook + " 中共有 " + filteredWords.size() + " 个需要复习的单词");
+
                                     // 过滤出已学习的单词（masteryLevel > 0 或 reviewCount > 0）
                                     List<Word> learnedWords = new ArrayList<>();
-                                    for (Word word : words) {
+                                    for (Word word : filteredWords) {
                                         if (word.getMasteryLevel() > 0 || word.getReviewCount() > 0) {
                                             learnedWords.add(word);
                                         }
                                     }
 
-                                    Log.d(TAG, "需要复习的单词: " + words.size() +
+                                    Log.d(TAG, "需要复习的单词: " + filteredWords.size() +
                                             "，已学习的: " + learnedWords.size());
+
+                                    // 获取今日已复习数量
+                                    int reviewedToday = getTodayReviewedCount();
 
                                     // 检查是否已有今日的复习列表
                                     SharedPreferences prefs = getSharedPreferences("ReviewList", MODE_PRIVATE);
@@ -208,6 +257,11 @@ public class ReviewActivity extends AppCompatActivity {
                                         // 保存今天的复习列表
                                         saveTodayReviewList(wordsToReview, today);
 
+                                        // 重置今日已复习数量（新的一天）
+                                        SharedPreferences progressPrefs = getSharedPreferences("ReviewProgress", MODE_PRIVATE);
+                                        progressPrefs.edit().remove("reviewed_today_" + today).apply();
+                                        reviewedToday = 0;
+
                                         // 清除重置标记
                                         if (isReset) {
                                             prefs.edit().remove("is_reset").apply();
@@ -217,11 +271,28 @@ public class ReviewActivity extends AppCompatActivity {
                                         Log.d(TAG, "生成了新的复习列表，共 " + wordsToReview.size() + " 个单词");
                                     }
 
+                                    // 记录今日计划总数
+                                    totalPlanCount = wordsToReview.size();
+
+                                    // 根据已复习数量，跳过已经复习过的单词
+                                    List<Word> remainingWords;
+                                    if (reviewedToday > 0 && reviewedToday < wordsToReview.size()) {
+                                        // 从已复习的位置之后开始
+                                        remainingWords = wordsToReview.subList(reviewedToday, wordsToReview.size());
+                                        Log.d(TAG, "跳过已复习的 " + reviewedToday + " 个单词，剩余 " + remainingWords.size() + " 个");
+                                    } else if (reviewedToday >= wordsToReview.size()) {
+                                        // 今天的所有单词都已复习完
+                                        remainingWords = new ArrayList<>();
+                                        Log.d(TAG, "今日所有单词都已复习完成");
+                                    } else {
+                                        remainingWords = wordsToReview;
+                                    }
+
                                     // 将单词加入队列
                                     reviewQueue.clear();
-                                    reviewQueue.addAll(wordsToReview);
-                                    totalWordCount = reviewQueue.size();
-                                    reviewedCount = 0;
+                                    reviewQueue.addAll(remainingWords);
+                                    sessionReviewedCount = 0;  // 当前会话中已复习的数量从0开始
+                                    rememberedCount = 0;        // 当前会话中记住的数量从0开始
 
                                     progressBar.setVisibility(View.GONE);
 
@@ -242,31 +313,56 @@ public class ReviewActivity extends AppCompatActivity {
     }
 
     /**
+     * 根据单词本过滤单词
+     */
+    private List<Word> filterWordsByWordBook(List<Word> words, String targetTag) {
+        if (targetTag == null || targetTag.isEmpty()) {
+            return words; // 返回所有单词
+        }
+
+        List<Word> filtered = new ArrayList<>();
+        for (Word word : words) {
+            String tags = word.getTags();
+            if (tags != null && tags.contains(targetTag)) {
+                filtered.add(word);
+            }
+        }
+        return filtered;
+    }
+
+    /**
      * 显示下一个单词
      */
     private void showNextWord() {
-        if (reviewQueue.isEmpty()) {
-            // 如果队列为空但还有忘记的单词，把忘记的单词重新加入队列
-            if (!forgottenWords.isEmpty()) {
-                reviewQueue.addAll(forgottenWords);
-                forgottenWords.clear();
-                Log.d(TAG, "将忘记的单词重新加入队列，数量: " + reviewQueue.size());
-            } else {
-                // 真的没有单词了
-                finishReview();
-                return;
-            }
+        // 先检查是否需要处理忘记的单词
+        if (reviewQueue.isEmpty() && !forgottenWords.isEmpty()) {
+            // 把忘记的单词重新加入队列
+            reviewQueue.addAll(forgottenWords);
+            forgottenWords.clear();
+            Log.d(TAG, "将忘记的单词重新加入队列，数量: " + reviewQueue.size());
         }
 
+        // 如果队列为空，说明所有单词都复习完了
+        if (reviewQueue.isEmpty()) {
+            finishReview();
+            return;
+        }
+
+        // 取出下一个单词
         currentWord = reviewQueue.poll();
-        reviewedCount++;
+        sessionReviewedCount++;  // 当前会话中已复习计数增加（显示当前单词）
 
         // 更新UI
         tvWord.setText(currentWord.getEnglishWord());
-        tvPhonetic.setText("/" + currentWord.getPhonetic() + "/");
+        tvPhonetic.setText("/" + (currentWord.getPhonetic() != null ? currentWord.getPhonetic() : "") + "/");
         tvMeaning.setText(currentWord.getChineseMeaning());
-        tvExample.setText(currentWord.getExampleSentence());
-        tvExampleTranslation.setText(currentWord.getExampleTranslation());
+        tvExample.setText(currentWord.getExampleSentence() != null ? currentWord.getExampleSentence() : "");
+        tvExampleTranslation.setText(currentWord.getExampleTranslation() != null ? currentWord.getExampleTranslation() : "");
+
+        Log.d(TAG, "当前单词: " + currentWord.getEnglishWord() +
+                ", 掌握程度: " + currentWord.getMasteryLevel() +
+                ", 队列剩余: " + reviewQueue.size() +
+                ", 忘记列表: " + forgottenWords.size());
 
         // 确保显示正面
         cardFront.setVisibility(View.VISIBLE);
@@ -289,8 +385,17 @@ public class ReviewActivity extends AppCompatActivity {
      * 更新进度显示
      */
     private void updateProgress() {
-        int completed = reviewedCount - 1; // 已完成的单词数（当前显示的还没完成）
-        int total = totalWordCount + forgottenWords.size(); // 总单词数包括忘记后重来的
+        // 已完成数量 = 今日已复习总数 + 当前会话中记住的数量
+        int reviewedToday = getTodayReviewedCount();
+        int completed = reviewedToday + rememberedCount;
+
+        // 总计划数
+        int total = totalPlanCount;
+
+        // 确保进度不会超过总数
+        completed = Math.min(completed, total);
+        completed = Math.max(completed, 0);
+
         tvProgress.setText(String.format("%d / %d", completed, total));
     }
 
@@ -342,20 +447,21 @@ public class ReviewActivity extends AppCompatActivity {
         if (currentWord == null) return;
 
         if (remembered) {
-            // 记住：直接更新数据库，进入下一个单词
+            // 记住：更新数据库，保存进度
+            rememberedCount++;  // 增加记住计数
+            saveReviewedCount();  // 保存今日已完成复习数量
             updateWordMastery(currentWord, true);
-            showNextWord();
+            Log.d(TAG, "记住单词，当前记住计数: " + rememberedCount);
         } else {
             // 忘记：先加入忘记列表，稍后重练
             forgottenWords.add(currentWord);
             Toast.makeText(this, "已加入待重练列表", Toast.LENGTH_SHORT).show();
-
-            // 更新数据库（降低掌握程度）
             updateWordMastery(currentWord, false);
-
-            // 显示下一个单词
-            showNextWord();
+            Log.d(TAG, "忘记单词，当前忘记列表大小: " + forgottenWords.size());
         }
+
+        // 显示下一个单词
+        showNextWord();
     }
 
     private void updateWordMastery(Word word, boolean remembered) {
@@ -375,7 +481,7 @@ public class ReviewActivity extends AppCompatActivity {
     }
 
     private void speakWord(String word) {
-        if (textToSpeech != null) {
+        if (textToSpeech != null && word != null && !word.isEmpty()) {
             textToSpeech.speak(word, TextToSpeech.QUEUE_FLUSH, null, null);
         }
     }
@@ -402,11 +508,6 @@ public class ReviewActivity extends AppCompatActivity {
         }
 
         return newList;
-    }
-
-    private String getTodayDateString() {
-        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.CHINA);
-        return sdf.format(new java.util.Date());
     }
 
     private void saveTodayReviewList(List<Word> reviewWords, String today) {
@@ -458,16 +559,29 @@ public class ReviewActivity extends AppCompatActivity {
         // 检查是否还有未复习的单词
         disposables.add(
                 wordRepository.getWordsToReview()
+                        .firstOrError()
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
                                 words -> {
-                                    int remainingCount = words.size();
+                                    // 过滤出已学习的单词
+                                    List<Word> learnedWords = new ArrayList<>();
+                                    for (Word word : words) {
+                                        if (word.getMasteryLevel() > 0 || word.getReviewCount() > 0) {
+                                            learnedWords.add(word);
+                                        }
+                                    }
 
-                                    if (remainingCount > 0 && isNewGroup) {
+                                    int totalNeedReview = learnedWords.size();
+
+                                    // 计算剩余未复习数量
+                                    int reviewedToday = getTodayReviewedCount();
+                                    int remaining = Math.max(0, totalPlanCount - reviewedToday);
+
+                                    if (remaining > 0 && isNewGroup) {
                                         new AlertDialog.Builder(this)
                                                 .setTitle("复习完成")
-                                                .setMessage("您已完成本组复习！\n\n还有 " + remainingCount + " 个单词需要复习，是否继续？")
+                                                .setMessage("您已完成本组复习！\n\n还有 " + remaining + " 个单词需要复习，是否继续？")
                                                 .setPositiveButton("继续复习", (dialog, which) -> {
                                                     resetReviewList();
                                                     loadReviewWords();
@@ -477,13 +591,13 @@ public class ReviewActivity extends AppCompatActivity {
                                                 })
                                                 .setCancelable(false)
                                                 .show();
-                                    } else if (remainingCount > 0) {
+                                    } else if (remaining > 0) {
                                         Toast.makeText(this,
-                                                "本组复习完成！还有 " + remainingCount + " 个单词待复习",
+                                                "本组复习完成！还有 " + remaining + " 个单词待复习",
                                                 Toast.LENGTH_LONG).show();
                                         finish();
                                     } else {
-                                        Toast.makeText(this, "恭喜！所有单词都已掌握！", Toast.LENGTH_LONG).show();
+                                        Toast.makeText(this, "恭喜！今日所有复习任务已完成！", Toast.LENGTH_LONG).show();
                                         new Handler().postDelayed(this::finish, 1500);
                                     }
                                 },

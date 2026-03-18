@@ -8,6 +8,8 @@ import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
+import android.widget.Spinner;
+import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -19,9 +21,10 @@ public class SettingsActivity extends AppCompatActivity {
     private RadioGroup rgReviewStrategy;
     private RadioButton rbStrict;
     private RadioButton rbFlexible;
-    private RadioGroup rgReviewOrder;      // 新增：复习顺序选项组
-    private RadioButton rbOrderNormal;     // 新增：默认顺序
-    private RadioButton rbOrderRandom;     // 新增：随机顺序
+    private RadioGroup rgReviewOrder;
+    private RadioButton rbOrderNormal;
+    private RadioButton rbOrderRandom;
+    private Spinner spinnerWordBook;  // 单词本选择下拉框
     private CheckBox cbAutoNext;
     private Button btnSaveSettings;
     private Toolbar toolbar;
@@ -35,6 +38,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         initViews();
         setupToolbar();
+        setupWordBookSpinner();
         loadSettings();
         setupListeners();
     }
@@ -45,12 +49,10 @@ public class SettingsActivity extends AppCompatActivity {
         rgReviewStrategy = findViewById(R.id.rg_review_strategy);
         rbStrict = findViewById(R.id.rb_strict);
         rbFlexible = findViewById(R.id.rb_flexible);
-
-        // 新增：初始化复习顺序相关视图
         rgReviewOrder = findViewById(R.id.rg_review_order);
         rbOrderNormal = findViewById(R.id.rb_order_normal);
         rbOrderRandom = findViewById(R.id.rb_order_random);
-
+        spinnerWordBook = findViewById(R.id.spinner_word_book);
         cbAutoNext = findViewById(R.id.cb_auto_next);
         btnSaveSettings = findViewById(R.id.btn_save_settings);
 
@@ -65,12 +67,24 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * 设置单词本选择下拉框
+     */
+    private void setupWordBookSpinner() {
+        // 可选的单词本
+        String[] wordBooks = {"四级词汇", "六级词汇", "考研词汇", "托福词汇", "雅思词汇", "全部单词"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, wordBooks);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerWordBook.setAdapter(adapter);
+    }
+
     private void loadSettings() {
-        // 加载保存的设置，如果没有则使用默认值
+        // 加载保存的设置
         int dailyCount = sharedPreferences.getInt("daily_review_count", 20);
         boolean isStrict = sharedPreferences.getBoolean("strict_mode", true);
         boolean autoNext = sharedPreferences.getBoolean("auto_next", false);
-        boolean isRandomOrder = sharedPreferences.getBoolean("random_order", true); // 新增：默认随机顺序
+        boolean isRandomOrder = sharedPreferences.getBoolean("random_order", true);
+        String selectedWordBook = sharedPreferences.getString("word_book", "四级词汇");
 
         etDailyReviewCount.setText(String.valueOf(dailyCount));
 
@@ -88,7 +102,24 @@ public class SettingsActivity extends AppCompatActivity {
             rbOrderNormal.setChecked(true);
         }
 
+        // 单词本选择
+        int spinnerPosition = getSpinnerPosition(selectedWordBook);
+        spinnerWordBook.setSelection(spinnerPosition);
+
         cbAutoNext.setChecked(autoNext);
+    }
+
+    /**
+     * 获取单词本在Spinner中的位置
+     */
+    private int getSpinnerPosition(String wordBook) {
+        String[] wordBooks = {"四级词汇", "六级词汇", "考研词汇", "托福词汇", "雅思词汇", "全部单词"};
+        for (int i = 0; i < wordBooks.length; i++) {
+            if (wordBooks[i].equals(wordBook)) {
+                return i;
+            }
+        }
+        return 0; // 默认返回第一个
     }
 
     private void setupListeners() {
@@ -123,18 +154,20 @@ public class SettingsActivity extends AppCompatActivity {
 
         boolean isStrict = rbStrict.isChecked();
         boolean autoNext = cbAutoNext.isChecked();
-        boolean isRandomOrder = rbOrderRandom.isChecked(); // 新增：获取复习顺序设置
+        boolean isRandomOrder = rbOrderRandom.isChecked();
+        String selectedWordBook = spinnerWordBook.getSelectedItem().toString();
 
         // 保存到SharedPreferences
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putInt("daily_review_count", dailyCount);
         editor.putBoolean("strict_mode", isStrict);
         editor.putBoolean("auto_next", autoNext);
-        editor.putBoolean("random_order", isRandomOrder); // 新增：保存复习顺序
+        editor.putBoolean("random_order", isRandomOrder);
+        editor.putString("word_book", selectedWordBook);
         editor.apply();
 
         Toast.makeText(this, "设置已保存", Toast.LENGTH_SHORT).show();
-        finish(); // 返回上一页
+        finish();
     }
 
     @Override
@@ -147,7 +180,7 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     /**
-     * 获取每日复习数量（静态方法，方便其他地方调用）
+     * 获取每日复习数量
      */
     public static int getDailyReviewCount(Context context) {
         SharedPreferences prefs = context.getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
@@ -171,10 +204,39 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     /**
-     * 新增：获取是否随机顺序
+     * 获取是否随机顺序
      */
     public static boolean isRandomOrder(Context context) {
         SharedPreferences prefs = context.getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
-        return prefs.getBoolean("random_order", true); // 默认true，让新手体验到随机的好处
+        return prefs.getBoolean("random_order", true);
+    }
+
+    /**
+     * 获取选中的单词本
+     */
+    public static String getSelectedWordBook(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
+        return prefs.getString("word_book", "四级词汇");
+    }
+
+    /**
+     * 根据单词本名称获取对应的标签查询条件
+     */
+    public static String getWordBookTag(String wordBook) {
+        switch (wordBook) {
+            case "四级词汇":
+                return "四级";
+            case "六级词汇":
+                return "六级";
+            case "考研词汇":
+                return "考研";
+            case "托福词汇":
+                return "托福";
+            case "雅思词汇":
+                return "雅思";
+            case "全部单词":
+            default:
+                return null; // null 表示查询所有
+        }
     }
 }

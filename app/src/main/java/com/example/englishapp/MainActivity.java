@@ -10,6 +10,7 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,6 +23,7 @@ import com.example.englishapp.entity.Word;
 import com.example.englishapp.repository.WordRepository;
 import com.google.android.material.button.MaterialButton;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -42,6 +44,11 @@ public class MainActivity extends AppCompatActivity {
     private MaterialButton btnLearn;     // 学习按钮
     private MaterialButton btnReview;    // 复习按钮
     private MaterialButton btnAdd;       // 添加单词按钮
+
+    // 新增：进度条相关视图
+    private ProgressBar progressOverall;
+    private TextView tvProgressPercent;
+    private TextView tvProgressDetail;
 
     private WordRepository wordRepository;
     private CompositeDisposable disposables = new CompositeDisposable();
@@ -86,6 +93,11 @@ public class MainActivity extends AppCompatActivity {
         btnLearn = findViewById(R.id.btn_learn);
         btnReview = findViewById(R.id.btn_review);
         btnAdd = findViewById(R.id.btn_add);
+
+        // 新增：初始化进度条视图
+        progressOverall = findViewById(R.id.progress_overall);
+        tvProgressPercent = findViewById(R.id.tv_progress_percent);
+        tvProgressDetail = findViewById(R.id.tv_progress_detail);
     }
 
     private void setupClickListeners() {
@@ -95,33 +107,8 @@ public class MainActivity extends AppCompatActivity {
         });
 
         btnLearn.setOnClickListener(v -> {
-            // 检查是否有未学习的单词
-            disposables.add(
-                    wordRepository.getAllWords()
-                            .firstOrError()
-                            .subscribeOn(Schedulers.io())
-                            .observeOn(AndroidSchedulers.mainThread())
-                            .subscribe(
-                                    words -> {
-                                        int newCount = 0;
-                                        for (Word word : words) {
-                                            if (word.getMasteryLevel() == 0 && word.getReviewCount() == 0) {
-                                                newCount++;
-                                            }
-                                        }
-
-                                        if (newCount == 0) {
-                                            Toast.makeText(this, "没有未学习的单词，请先添加单词", Toast.LENGTH_SHORT).show();
-                                        } else {
-                                            startLearnActivity();
-                                        }
-                                    },
-                                    throwable -> {
-                                        Log.e(TAG, "检查未学习单词失败", throwable);
-                                        Toast.makeText(this, "加载失败", Toast.LENGTH_SHORT).show();
-                                    }
-                            )
-            );
+            // 检查是否有未学习的单词（根据当前单词本）
+            checkNewWordsAndStartLearn();
         });
 
         btnReview.setOnClickListener(v -> {
@@ -141,6 +128,45 @@ public class MainActivity extends AppCompatActivity {
         btnAdd.setOnClickListener(v -> {
             startAddWordActivity();
         });
+    }
+
+    /**
+     * 检查未学习单词并启动学习界面
+     */
+    private void checkNewWordsAndStartLearn() {
+        disposables.add(
+                wordRepository.getAllWords()
+                        .firstOrError()
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(
+                                words -> {
+                                    // 获取当前选中的单词本
+                                    String selectedWordBook = SettingsActivity.getSelectedWordBook(this);
+                                    String targetTag = SettingsActivity.getWordBookTag(selectedWordBook);
+
+                                    // 根据单词本过滤
+                                    List<Word> filteredWords = filterWordsByWordBook(words, targetTag);
+
+                                    int newCount = 0;
+                                    for (Word word : filteredWords) {
+                                        if (word.getMasteryLevel() == 0 && word.getReviewCount() == 0) {
+                                            newCount++;
+                                        }
+                                    }
+
+                                    if (newCount == 0) {
+                                        Toast.makeText(this, "当前单词本中没有未学习的单词，请先添加单词", Toast.LENGTH_SHORT).show();
+                                    } else {
+                                        startLearnActivity();
+                                    }
+                                },
+                                throwable -> {
+                                    Log.e(TAG, "检查未学习单词失败", throwable);
+                                    Toast.makeText(this, "加载失败", Toast.LENGTH_SHORT).show();
+                                }
+                        )
+        );
     }
 
     /**
@@ -230,51 +256,11 @@ public class MainActivity extends AppCompatActivity {
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(
                                 words -> {
-                                    // 更新总单词数
-                                    tvTotalWords.setText(String.valueOf(words.size()));
-
-                                    // 统计未学习和已掌握
-                                    int newCount = 0;
-                                    int masteredCount = 0;
-
-                                    for (Word word : words) {
-                                        // 未学习：masteryLevel == 0 && reviewCount == 0
-                                        if (word.getMasteryLevel() == 0 && word.getReviewCount() == 0) {
-                                            newCount++;
-                                        }
-                                        // 已掌握：masteryLevel >= 4
-                                        if (word.getMasteryLevel() >= 4) {
-                                            masteredCount++;
-                                        }
-                                    }
-
-                                    tvNewWords.setText(String.valueOf(newCount));
-                                    tvMastered.setText(String.valueOf(masteredCount));
-
-                                    Log.d(TAG, "统计更新 - 总:" + words.size() +
-                                            " 未学习:" + newCount +
-                                            " 已掌握:" + masteredCount);
+                                    updateStats(words);
                                 },
                                 throwable -> {
                                     Log.e(TAG, "加载单词列表失败", throwable);
                                     Toast.makeText(this, "加载失败: " + throwable.getMessage(), Toast.LENGTH_SHORT).show();
-                                }
-                        )
-        );
-
-        // 获取待复习数量
-        disposables.add(
-                wordRepository.getTodayReviewCount()
-                        .subscribeOn(Schedulers.io())
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(
-                                count -> {
-                                    tvNeedReview.setText(String.valueOf(count));
-                                    Log.d(TAG, "待复习数量: " + count);
-                                },
-                                throwable -> {
-                                    Log.e(TAG, "获取待复习数量失败", throwable);
-                                    tvNeedReview.setText("0");
                                 }
                         )
         );
@@ -298,19 +284,45 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * 更新统计数据
+     * 根据单词本过滤单词
+     */
+    private List<Word> filterWordsByWordBook(List<Word> words, String targetTag) {
+        if (targetTag == null || targetTag.isEmpty()) {
+            return words; // 返回所有单词
+        }
+
+        List<Word> filtered = new ArrayList<>();
+        for (Word word : words) {
+            String tags = word.getTags();
+            if (tags != null && tags.contains(targetTag)) {
+                filtered.add(word);
+            }
+        }
+        return filtered;
+    }
+
+    /**
+     * 更新统计数据（根据当前选中的单词本）
      */
     private void updateStats(List<Word> words) {
-        // 总单词数
-        tvTotalWords.setText(String.valueOf(words.size()));
+        // 获取选中的单词本
+        String selectedWordBook = SettingsActivity.getSelectedWordBook(this);
+        String targetTag = SettingsActivity.getWordBookTag(selectedWordBook);
+        Log.d(TAG, "当前选中的单词本: " + selectedWordBook + ", 标签: " + targetTag);
 
-        // 计算待复习单词（基于艾宾浩斯遗忘曲线）
+        // 根据单词本过滤
+        List<Word> filteredWords = filterWordsByWordBook(words, targetTag);
+
+        // 总单词数（当前单词本）
+        tvTotalWords.setText(String.valueOf(filteredWords.size()));
+
+        // 计算各项统计
         long now = System.currentTimeMillis();
         int needReviewCount = 0;
         int masteredCount = 0;
         int newCount = 0;
 
-        for (Word word : words) {
+        for (Word word : filteredWords) {
             // 未学习统计
             if (word.getMasteryLevel() == 0 && word.getReviewCount() == 0) {
                 newCount++;
@@ -329,10 +341,31 @@ public class MainActivity extends AppCompatActivity {
         tvNeedReview.setText(String.valueOf(needReviewCount));
         tvMastered.setText(String.valueOf(masteredCount));
 
-        Log.d(TAG, "统计更新 - 总:" + words.size() +
+        // 新增：更新进度条
+        updateProgress(masteredCount, filteredWords.size());
+
+        Log.d(TAG, "单词本: " + selectedWordBook +
+                ", 统计更新 - 总:" + filteredWords.size() +
                 " 未学习:" + newCount +
                 " 待复习:" + needReviewCount +
                 " 已掌握:" + masteredCount);
+    }
+
+    /**
+     * 新增：更新进度条显示
+     */
+    private void updateProgress(int mastered, int total) {
+        if (total == 0) {
+            progressOverall.setProgress(0);
+            tvProgressPercent.setText("0%");
+            tvProgressDetail.setText("暂无单词");
+            return;
+        }
+
+        int percentage = (int) ((float) mastered / total * 100);
+        progressOverall.setProgress(percentage);
+        tvProgressPercent.setText(percentage + "%");
+        tvProgressDetail.setText("已掌握 " + mastered + " / " + total + " 个单词");
     }
 
     /**
