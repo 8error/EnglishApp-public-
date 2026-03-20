@@ -24,6 +24,7 @@ import com.example.englishapp.repository.WordRepository;
 import com.google.android.material.button.MaterialButton;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -45,10 +46,14 @@ public class MainActivity extends AppCompatActivity {
     private MaterialButton btnReview;    // 复习按钮
     private MaterialButton btnAdd;       // 添加单词按钮
 
-    // 新增：进度条相关视图
+    // 进度条相关视图
     private ProgressBar progressOverall;
     private TextView tvProgressPercent;
     private TextView tvProgressDetail;
+
+    // 新增：今日学习相关视图
+    private TextView tvTodayCount;
+    private ImageView ivTodayLearned;
 
     private WordRepository wordRepository;
     private CompositeDisposable disposables = new CompositeDisposable();
@@ -94,10 +99,14 @@ public class MainActivity extends AppCompatActivity {
         btnReview = findViewById(R.id.btn_review);
         btnAdd = findViewById(R.id.btn_add);
 
-        // 新增：初始化进度条视图
+        // 初始化进度条视图
         progressOverall = findViewById(R.id.progress_overall);
         tvProgressPercent = findViewById(R.id.tv_progress_percent);
         tvProgressDetail = findViewById(R.id.tv_progress_detail);
+
+        // 新增：初始化今日学习相关视图
+        tvTodayCount = findViewById(R.id.tv_today_count);
+        ivTodayLearned = findViewById(R.id.iv_today_learned);
     }
 
     private void setupClickListeners() {
@@ -127,6 +136,12 @@ public class MainActivity extends AppCompatActivity {
 
         btnAdd.setOnClickListener(v -> {
             startAddWordActivity();
+        });
+
+        // 新增：今日学习记录点击事件
+        ivTodayLearned.setOnClickListener(v -> {
+            Intent intent = new Intent(this, TodayLearnedActivity.class);
+            startActivity(intent);
         });
     }
 
@@ -302,6 +317,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
+     * 获取今天开始的时间戳
+     */
+    private long getStartOfDayTimestamp() {
+        Calendar calendar = Calendar.getInstance();
+        calendar.set(Calendar.HOUR_OF_DAY, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+        return calendar.getTimeInMillis();
+    }
+
+    /**
      * 更新统计数据（根据当前选中的单词本）
      */
     private void updateStats(List<Word> words) {
@@ -322,6 +349,11 @@ public class MainActivity extends AppCompatActivity {
         int masteredCount = 0;
         int newCount = 0;
 
+        // 新增：计算今日学习数量
+        long startOfDay = getStartOfDayTimestamp();
+        long endOfDay = startOfDay + 24 * 60 * 60 * 1000;
+        int todayCount = 0;
+
         for (Word word : filteredWords) {
             // 未学习统计
             if (word.getMasteryLevel() == 0 && word.getReviewCount() == 0) {
@@ -335,24 +367,37 @@ public class MainActivity extends AppCompatActivity {
             if (word.getMasteryLevel() >= 4) {
                 masteredCount++;
             }
+
+            // 今日学习统计（创建时间或最后复习时间在今天）
+            long createTime = word.getCreateTime() != null ? word.getCreateTime().getTime() : 0;
+            long lastReview = word.getLastReview() != null ? word.getLastReview().getTime() : 0;
+
+            if ((createTime >= startOfDay && createTime <= endOfDay) ||
+                    (lastReview >= startOfDay && lastReview <= endOfDay)) {
+                todayCount++;
+            }
         }
 
         tvNewWords.setText(String.valueOf(newCount));
         tvNeedReview.setText(String.valueOf(needReviewCount));
         tvMastered.setText(String.valueOf(masteredCount));
 
-        // 新增：更新进度条
+        // 新增：更新今日学习数量
+        tvTodayCount.setText(String.valueOf(todayCount));
+
+        // 更新进度条
         updateProgress(masteredCount, filteredWords.size());
 
         Log.d(TAG, "单词本: " + selectedWordBook +
                 ", 统计更新 - 总:" + filteredWords.size() +
                 " 未学习:" + newCount +
                 " 待复习:" + needReviewCount +
-                " 已掌握:" + masteredCount);
+                " 已掌握:" + masteredCount +
+                " 今日学习:" + todayCount);
     }
 
     /**
-     * 新增：更新进度条显示
+     * 更新进度条显示
      */
     private void updateProgress(int mastered, int total) {
         if (total == 0) {

@@ -163,6 +163,50 @@
         </LinearLayout>
 
     </androidx.cardview.widget.CardView>
+        <!-- 在统计卡片和进度条之间添加 -->
+        <!-- 今日学习快捷入口 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="8dp"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="今日学习记录"
+                android:textSize="14sp"
+                android:textColor="@android:color/darker_gray" />
+
+            <TextView
+                android:id="@+id/tv_today_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0"
+                android:textSize="14sp"
+                android:textColor="@color/teal_700"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="个单词"
+                android:textSize="14sp"
+                android:textColor="@android:color/darker_gray"
+                android:layout_marginStart="4dp" />
+
+            <ImageView
+                android:id="@+id/iv_today_learned"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/ic_menu_gallery"
+                android:tint="@color/teal_700"
+                android:layout_marginStart="8dp" />
+
+        </LinearLayout>
 
     <!-- 新增：进度条区域 -->
     <androidx.cardview.widget.CardView
