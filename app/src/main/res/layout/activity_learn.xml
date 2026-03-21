@@ -65,14 +65,33 @@
                 android:padding="24dp"
                 android:background="@android:color/white">
 
-                <TextView
-                    android:id="@+id/tv_word"
+                <!-- 单词区域（带语音按钮） -->
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textSize="36sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/purple_500"
-                    android:text="Word" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/tv_word"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="36sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/purple_500"
+                        android:text="Word" />
+
+                    <ImageView
+                        android:id="@+id/btn_speak"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@android:drawable/ic_media_play"
+                        android:tint="@color/purple_500"
+                        android:layout_marginStart="12dp"
+                        android:clickable="true"
+                        android:focusable="true" />
+
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/tv_phonetic"
@@ -114,6 +133,36 @@
                     android:orientation="vertical"
                     android:padding="24dp"
                     android:background="@android:color/white">
+
+                    <!-- 单词区域（带语音按钮） -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginBottom="16dp">
+
+                        <TextView
+                            android:id="@+id/tv_word_back"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="28sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/purple_500"
+                            android:text="Word" />
+
+                        <ImageView
+                            android:id="@+id/btn_speak_back"
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:src="@android:drawable/ic_media_play"
+                            android:tint="@color/purple_500"
+                            android:layout_marginStart="12dp"
+                            android:clickable="true"
+                            android:focusable="true" />
+
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/tv_meaning"
@@ -252,14 +301,16 @@
         android:padding="16dp"
         android:visibility="visible">
 
+        <!-- 显示答案按钮（放在最下面） -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_show_answer"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
+            android:layout_height="56dp"
             android:text="显示答案"
+            android:textSize="18sp"
             android:textColor="@android:color/white"
             app:backgroundTint="@color/purple_500"
-            app:cornerRadius="8dp"
+            app:cornerRadius="12dp"
             android:layout_marginBottom="12dp" />
 
         <!-- 认识/不认识按钮组 -->
@@ -273,24 +324,26 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_unknown"
                 android:layout_width="0dp"
-                android:layout_height="48dp"
+                android:layout_height="56dp"
                 android:layout_weight="1"
                 android:text="不认识"
+                android:textSize="16sp"
                 android:textColor="@android:color/white"
                 app:backgroundTint="@android:color/holo_red_dark"
-                app:cornerRadius="8dp"
-                android:layout_marginEnd="4dp" />
+                app:cornerRadius="12dp"
+                android:layout_marginEnd="8dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_known"
                 android:layout_width="0dp"
-                android:layout_height="48dp"
+                android:layout_height="56dp"
                 android:layout_weight="1"
                 android:text="认识"
+                android:textSize="16sp"
                 android:textColor="@android:color/white"
                 app:backgroundTint="@color/teal_700"
-                app:cornerRadius="8dp"
-                android:layout_marginStart="4dp" />
+                app:cornerRadius="12dp"
+                android:layout_marginStart="8dp" />
 
         </LinearLayout>
 
@@ -315,30 +368,5 @@
             android:layout_marginBottom="8dp" />
 
     </LinearLayout>
-
-    <!-- 朗读按钮（两个模式共用） -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/btn_speak"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
-        android:src="@android:drawable/ic_media_play"
-        app:backgroundTint="@color/teal_700"
-        app:tint="@android:color/white"
-        app:fabSize="normal" />
-
-    <!-- 翻转按钮（仅学习模式使用） -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_flip"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|start"
-        android:layout_margin="16dp"
-        android:src="@android:drawable/ic_menu_rotate"
-        app:backgroundTint="@color/purple_500"
-        app:tint="@android:color/white"
-        android:visibility="visible"
-        app:fabSize="normal" />
 
 </LinearLayout>

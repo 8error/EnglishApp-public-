@@ -27,7 +27,6 @@ import androidx.cardview.widget.CardView;
 
 import com.example.englishapp.entity.Word;
 import com.example.englishapp.repository.WordRepository;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -46,6 +45,7 @@ public class LearnActivity extends AppCompatActivity {
     private static final int MODE_TEST = 2;       // 测试模式
 
     private TextView tvWord;
+    private TextView tvWordBack;          // 背面卡片单词
     private TextView tvPhonetic;
     private TextView tvMeaning;
     private TextView tvExample;
@@ -57,10 +57,10 @@ public class LearnActivity extends AppCompatActivity {
     private Button btnKnown;
     private Button btnUnknown;
     private LinearLayout layoutKnownButtons;
-    private ImageView btnSpeak;
+    private ImageView btnSpeak;            // 正面语音按钮
+    private ImageView btnSpeakBack;        // 背面语音按钮
     private ProgressBar progressBar;
     private Toolbar toolbar;
-    private FloatingActionButton fabFlip;
 
     // 测试模式特有的视图
     private CardView cardTest;
@@ -75,7 +75,7 @@ public class LearnActivity extends AppCompatActivity {
     private CompositeDisposable disposables = new CompositeDisposable();
 
     private List<Word> learnWords = new ArrayList<>();  // 学习的单词
-    private List<Word> testWords = new ArrayList<>();   // 测试的单词（与learnWords相同，但顺序打乱）
+    private List<Word> testWords = new ArrayList<>();   // 测试的单词
     private int currentIndex = 0;
     private int dailyLearnCount = 10;
     private int currentMode = MODE_LEARN;  // 当前模式
@@ -108,6 +108,7 @@ public class LearnActivity extends AppCompatActivity {
     private void initViews() {
         toolbar = findViewById(R.id.toolbar);
         tvWord = findViewById(R.id.tv_word);
+        tvWordBack = findViewById(R.id.tv_word_back);
         tvPhonetic = findViewById(R.id.tv_phonetic);
         tvMeaning = findViewById(R.id.tv_meaning);
         tvExample = findViewById(R.id.tv_example);
@@ -120,8 +121,8 @@ public class LearnActivity extends AppCompatActivity {
         btnUnknown = findViewById(R.id.btn_unknown);
         layoutKnownButtons = findViewById(R.id.layout_known_buttons);
         btnSpeak = findViewById(R.id.btn_speak);
+        btnSpeakBack = findViewById(R.id.btn_speak_back);
         progressBar = findViewById(R.id.progress_bar);
-        fabFlip = findViewById(R.id.fab_flip);
 
         // 测试模式视图
         cardTest = findViewById(R.id.card_test);
@@ -152,11 +153,13 @@ public class LearnActivity extends AppCompatActivity {
                 int result = textToSpeech.setLanguage(Locale.US);
                 if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                     Log.e(TAG, "语言不支持");
-                    btnSpeak.setEnabled(false);
+                    if (btnSpeak != null) btnSpeak.setEnabled(false);
+                    if (btnSpeakBack != null) btnSpeakBack.setEnabled(false);
                 }
             } else {
                 Log.e(TAG, "TTS初始化失败");
-                btnSpeak.setEnabled(false);
+                if (btnSpeak != null) btnSpeak.setEnabled(false);
+                if (btnSpeakBack != null) btnSpeakBack.setEnabled(false);
             }
         });
     }
@@ -226,7 +229,6 @@ public class LearnActivity extends AppCompatActivity {
         layoutLearnButtons.setVisibility(View.VISIBLE);
         layoutKnownButtons.setVisibility(View.GONE);
         btnShowAnswer.setVisibility(View.VISIBLE);
-        fabFlip.setVisibility(View.VISIBLE);
 
         // 更新标题
         if (getSupportActionBar() != null) {
@@ -252,7 +254,6 @@ public class LearnActivity extends AppCompatActivity {
         cardFront.setVisibility(View.GONE);
         cardBack.setVisibility(View.GONE);
         layoutLearnButtons.setVisibility(View.GONE);
-        fabFlip.setVisibility(View.GONE);
 
         // 显示测试模式视图
         cardTest.setVisibility(View.VISIBLE);
@@ -278,7 +279,11 @@ public class LearnActivity extends AppCompatActivity {
 
         Word currentWord = learnWords.get(currentIndex);
 
+        // 更新正面卡片
         tvWord.setText(currentWord.getEnglishWord());
+        if (tvWordBack != null) {
+            tvWordBack.setText(currentWord.getEnglishWord());
+        }
         tvPhonetic.setText("/" + (currentWord.getPhonetic() != null ? currentWord.getPhonetic() : "") + "/");
         tvMeaning.setText(currentWord.getChineseMeaning());
         tvExample.setText(currentWord.getExampleSentence() != null ? currentWord.getExampleSentence() : "");
@@ -328,21 +333,34 @@ public class LearnActivity extends AppCompatActivity {
     }
 
     private void setupClickListeners() {
+        // 显示答案按钮
         btnShowAnswer.setOnClickListener(v -> flipCard());
 
+        // 认识/不认识按钮
         btnKnown.setOnClickListener(v -> handleLearningResult(true));
-
         btnUnknown.setOnClickListener(v -> handleLearningResult(false));
 
-        btnSpeak.setOnClickListener(v -> {
-            if (currentMode == MODE_LEARN && currentIndex < learnWords.size()) {
-                speakWord(learnWords.get(currentIndex).getEnglishWord());
-            } else if (currentMode == MODE_TEST && currentIndex < testWords.size()) {
-                speakWord(testWords.get(currentIndex).getEnglishWord());
-            }
-        });
+        // 正面语音按钮
+        if (btnSpeak != null) {
+            btnSpeak.setOnClickListener(v -> {
+                if (currentMode == MODE_LEARN && currentIndex < learnWords.size()) {
+                    speakWord(learnWords.get(currentIndex).getEnglishWord());
+                } else if (currentMode == MODE_TEST && currentIndex < testWords.size()) {
+                    speakWord(testWords.get(currentIndex).getEnglishWord());
+                }
+            });
+        }
 
-        fabFlip.setOnClickListener(v -> flipCard());
+        // 背面语音按钮
+        if (btnSpeakBack != null) {
+            btnSpeakBack.setOnClickListener(v -> {
+                if (currentMode == MODE_LEARN && currentIndex < learnWords.size()) {
+                    speakWord(learnWords.get(currentIndex).getEnglishWord());
+                }
+            });
+        }
+
+        // 卡片点击翻转
         cardFront.setOnClickListener(v -> flipCard());
         cardBack.setOnClickListener(v -> flipCard());
 
@@ -366,6 +384,7 @@ public class LearnActivity extends AppCompatActivity {
 
     private void flipCard() {
         if (cardFront.getVisibility() == View.VISIBLE) {
+            // 正面 -> 背面
             cardFront.startAnimation(flipOut);
             cardBack.startAnimation(flipIn);
             cardFront.setVisibility(View.GONE);
@@ -375,6 +394,7 @@ public class LearnActivity extends AppCompatActivity {
             layoutKnownButtons.setVisibility(View.VISIBLE);
             btnShowAnswer.setText("返回正面");
         } else {
+            // 背面 -> 正面
             cardBack.startAnimation(flipOut);
             cardFront.startAnimation(flipIn);
             cardBack.setVisibility(View.GONE);
@@ -386,9 +406,6 @@ public class LearnActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * 检查测试答案
-     */
     /**
      * 检查测试答案
      */
@@ -414,23 +431,20 @@ public class LearnActivity extends AppCompatActivity {
                 showNextTest();
             }, 800);
         } else {
-            // 回答错误 - 多种提示方式
-
-            // 1. 文本提示
+            // 回答错误
             tvTestResult.setText("✗ 错误！正确答案是: " + correctAnswer);
             tvTestResult.setTextColor(getColor(android.R.color.white));
             tvTestResult.setBackgroundColor(getColor(android.R.color.holo_red_dark));
             tvTestResult.setVisibility(View.VISIBLE);
             tvTestResult.setPadding(16, 12, 16, 12);
 
-            // 2. 输入框错误提示
+            // 输入框错误提示
             etTestInput.setError("正确答案: " + correctAnswer);
 
-            // 3. 朗读正确答案
+            // 朗读正确答案
             speakWord(correctAnswer);
 
-            // 4. 短暂显示正确答案在卡片上（可选）
-            // 临时保存原中文释义
+            // 短暂显示正确答案在卡片上
             String originalMeaning = tvTestMeaning.getText().toString();
             tvTestMeaning.setText(correctAnswer);
             tvTestMeaning.setTextColor(getColor(android.R.color.holo_red_dark));
