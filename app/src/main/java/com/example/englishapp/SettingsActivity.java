@@ -68,11 +68,11 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     /**
-     * 设置单词本选择下拉框
+     * 设置单词本选择下拉框 - 只保留四级和六级
      */
     private void setupWordBookSpinner() {
-        // 可选的单词本
-        String[] wordBooks = {"四级词汇", "六级词汇", "考研词汇", "托福词汇", "雅思词汇", "全部单词"};
+        // 只保留四级词汇和六级词汇选项
+        String[] wordBooks = {"四级词汇", "六级词汇"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, wordBooks);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerWordBook.setAdapter(adapter);
@@ -113,13 +113,13 @@ public class SettingsActivity extends AppCompatActivity {
      * 获取单词本在Spinner中的位置
      */
     private int getSpinnerPosition(String wordBook) {
-        String[] wordBooks = {"四级词汇", "六级词汇", "考研词汇", "托福词汇", "雅思词汇", "全部单词"};
+        String[] wordBooks = {"四级词汇", "六级词汇"};
         for (int i = 0; i < wordBooks.length; i++) {
             if (wordBooks[i].equals(wordBook)) {
                 return i;
             }
         }
-        return 0; // 默认返回第一个
+        return 0; // 默认返回第一个（四级词汇）
     }
 
     private void setupListeners() {
@@ -228,15 +228,8 @@ public class SettingsActivity extends AppCompatActivity {
                 return "四级";
             case "六级词汇":
                 return "六级";
-            case "考研词汇":
-                return "考研";
-            case "托福词汇":
-                return "托福";
-            case "雅思词汇":
-                return "雅思";
-            case "全部单词":
             default:
-                return null; // null 表示查询所有
+                return null; // 默认返回所有（实际上只有四级和六级）
         }
     }
 }

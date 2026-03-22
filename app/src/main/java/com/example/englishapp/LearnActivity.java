@@ -264,6 +264,9 @@ public class LearnActivity extends AppCompatActivity {
             getSupportActionBar().setTitle("默写测试");
         }
 
+        // 更新进度显示
+        tvProgress.setText(String.format("测试 %d / %d", 0, testWords.size()));
+
         showNextTest();
     }
 

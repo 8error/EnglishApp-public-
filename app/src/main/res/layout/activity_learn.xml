@@ -206,7 +206,7 @@
 
         </androidx.cardview.widget.CardView>
 
-        <!-- 测试模式：默写卡片（默认隐藏） -->
+        <!-- 测试模式：默写卡片（与学习模式正面卡片同款布局） -->
         <androidx.cardview.widget.CardView
             android:id="@+id/card_test"
             android:layout_width="match_parent"
@@ -215,78 +215,68 @@
             app:cardElevation="8dp"
             android:visibility="gone">
 
-            <ScrollView
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent">
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="24dp"
+                android:background="@android:color/white">
 
-                <LinearLayout
+                <!-- 标题/提示 -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📝 默写测试"
+                    android:textSize="20sp"
+                    android:textColor="@color/purple_500"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- 中文释义 -->
+                <TextView
+                    android:id="@+id/tv_test_meaning"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="32sp"
+                    android:textColor="@color/teal_700"
+                    android:textStyle="bold"
+                    android:text="中文释义"
+                    android:gravity="center"
+                    android:layout_marginBottom="24dp" />
+
+                <!-- 输入框（放在卡片中间，类似单词的位置） -->
+                <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal"
-                    android:padding="24dp"
-                    android:background="@android:color/white">
+                    android:layout_marginBottom="16dp"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <EditText
+                        android:id="@+id/et_test_input"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="📝 默写测试"
+                        android:hint="请输入英文单词"
                         android:textSize="20sp"
-                        android:textColor="@color/purple_500"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="24dp" />
+                        android:padding="12dp"
+                        android:inputType="text"
+                        android:maxLines="1"
+                        android:textColor="@android:color/black"
+                        android:textStyle="bold" />
 
-                    <TextView
-                        android:id="@+id/tv_test_meaning"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textSize="28sp"
-                        android:textColor="@color/teal_700"
-                        android:textStyle="bold"
-                        android:text="中文释义"
-                        android:gravity="center"
-                        android:layout_marginBottom="32dp" />
+                </com.google.android.material.textfield.TextInputLayout>
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="16dp"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                <!-- 结果提示 -->
+                <TextView
+                    android:id="@+id/tv_test_result"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="16sp"
+                    android:gravity="center"
+                    android:visibility="gone"
+                    android:layout_marginTop="8dp" />
 
-                        <EditText
-                            android:id="@+id/et_test_input"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:hint="请输入英文单词"
-                            android:textSize="18sp"
-                            android:padding="12dp"
-                            android:inputType="text"
-                            android:maxLines="1" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <TextView
-                        android:id="@+id/tv_test_result"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:textSize="16sp"
-                        android:gravity="center"
-                        android:visibility="gone"
-                        android:layout_marginBottom="16dp" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_test_submit"
-                        android:layout_width="match_parent"
-                        android:layout_height="56dp"
-                        android:text="提交答案"
-                        android:textSize="18sp"
-                        android:textColor="@android:color/white"
-                        app:backgroundTint="@color/teal_700"
-                        app:cornerRadius="8dp" />
-
-                </LinearLayout>
-
-            </ScrollView>
+            </LinearLayout>
 
         </androidx.cardview.widget.CardView>
 
@@ -358,14 +348,16 @@
         android:padding="16dp"
         android:visibility="gone">
 
-        <TextView
+        <!-- 提交答案按钮（放在和学习模式"显示答案"按钮相同的位置） -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_test_submit"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="根据中文释义输入对应的英文单词"
-            android:textSize="14sp"
-            android:textColor="@android:color/darker_gray"
-            android:gravity="center"
-            android:layout_marginBottom="8dp" />
+            android:layout_height="56dp"
+            android:text="提交答案"
+            android:textSize="18sp"
+            android:textColor="@android:color/white"
+            app:backgroundTint="@color/purple_500"
+            app:cornerRadius="12dp" />
 
     </LinearLayout>
 
